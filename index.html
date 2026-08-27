@@ -28,20 +28,30 @@
   <button id="next-btn" onclick="nextQuestion()" style="display:none;">回答を終えて次の質問へ</button>
 
   <script>
-    // ★ ここにGASのウェブアプリURLを貼り付けてください ★
-    const gasUrl = "https://script.google.com/macros/s/AKfycbxb01APGBOhZmMnxKWsGqP00sI-famCJ1JjPsIZ2Qp5kKyuDa0_BsnEkAQcJGRzFTCHNQ/exec"; 
+    // ★ 注意：ここに先生のGASのウェブアプリURLを忘れずに貼り付け直してください ★
+    const gasUrl = "ここにGASのURLを貼り付けます"; 
+
+    // 面接の質問リスト（全11問）
     const questions = [
+      "自己紹介をお願いします。",
       "学生時代に力を入れたことは何ですか。",
       "あなたの長所と短所はなんですか。",
-      "仕事で生かせるあなたの強みを教えてください。"
+      "仕事で生かせるあなたの強みを教えてください。",
+      "どうしてこの業界を選んだのですか。",
+      "どうして当社を選んだのですか。",
+      "当社でどのような仕事をしたいですか。",
+      "当社のホームページや会社案内をご覧になって、どう思われましたか。",
+      "当社の企業理念について、どう思われますか。",
+      "入社後、どのような仕事をしたいですか。",
+      "10年後、あなたは当社でどのような仕事をしていますか。"
     ];
+    
     let currentIndex = 0;
     let mediaRecorder;
     let audioChunks = [];
 
     // --- 音声エンジンの準備 ---
     let availableVoices = [];
-    // Chromeは音声リストの読み込みに少し時間がかかるため、イベントを監視する
     window.speechSynthesis.onvoiceschanged = function() {
       availableVoices = window.speechSynthesis.getVoices();
     };
@@ -49,14 +59,14 @@
     function speak(text, callback) {
       const uttr = new SpeechSynthesisUtterance(text);
       uttr.lang = 'ja-JP';
-      uttr.rate = 0.9; 
       
-      // もし配列が空なら、この時点でもう一度取得を試みる
+      // ★ 読み上げスピードの調整（1.0が標準。今回は0.9から1.1に少し上げました）
+      uttr.rate = 1.1; 
+      
       if (availableVoices.length === 0) {
         availableVoices = window.speechSynthesis.getVoices();
       }
 
-      // 「Google 日本語」または「Google Japanese」を探す
       const googleVoice = availableVoices.find(v => v.name === 'Google 日本語' || v.name === 'Google Japanese');
       
       if (googleVoice) {
@@ -102,7 +112,8 @@
       document.getElementById('next-btn').style.display = 'none';
       if (currentIndex < questions.length) {
         const q = questions[currentIndex];
-        document.getElementById('question-text').innerText = `質問 ${currentIndex + 1} : ${q}`;
+        // 質問番号とテキストを表示
+        document.getElementById('question-text').innerText = `質問 ${currentIndex + 1} / ${questions.length} : ${q}`;
         speak(q, function() {
           document.getElementById('next-btn').style.display = 'inline-block';
         });
@@ -121,7 +132,6 @@
     }
 
     function sendDataToGAS(base64Data) {
-      // GASへの送信処理（テスト段階では未入力でも動作します）
       if(gasUrl === "ここにGASのURLを貼り付けます") {
          alert("面接は終了しました。（※まだGASのURLが設定されていないため、データは送信されません）");
          return;
