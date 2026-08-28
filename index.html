@@ -6,39 +6,39 @@
   <style>
     body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f9f9f9; }
     
-    /* --- 面接官の顔とアニメーションの設定 --- */
+    /* --- 面接官の写真とアニメーションの設定 --- */
     .interviewer-wrapper { margin: 0 auto 20px; display: flex; flex-direction: column; align-items: center; }
     .interviewer-label { font-weight: bold; color: #333; margin-bottom: 10px; font-size: 1.2em; }
     
-    .interviewer-icon { 
-      width: 120px; height: 120px; border-radius: 50%; 
-      background-color: #fdf5e6; /* 少し温かみのある肌色 */
-      border: 4px solid #2c3e50; /* スーツを思わせる濃いネイビーの枠線 */
-      display: flex; flex-direction: column; align-items: center; justify-content: center; 
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    /* 写真を丸く切り抜くための枠 */
+    .interviewer-photo-container { 
+      width: 150px; height: 150px; border-radius: 50%; 
+      display: flex; align-items: center; justify-content: center; 
+      transition: all 0.2s ease;
     }
     
-    /* 目の設定（まばたきアニメーション付き） */
-    .eyes { display: flex; gap: 24px; margin-bottom: 15px; margin-top: -10px; }
-    .eye { 
-      width: 12px; height: 12px; background-color: #2c3e50; border-radius: 50%; 
-      animation: blink-eye 4s infinite; 
+    /* 写真自体を枠に合わせて丸くする */
+    .interviewer-photo {
+      width: 100%; height: 100%; border-radius: 50%; 
+      object-fit: cover; /* 写真が歪まないように調整 */
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
-    @keyframes blink-eye {
-      0%, 96%, 100% { transform: scaleY(1); }
-      98% { transform: scaleY(0.1); } /* 一瞬だけ目を閉じる */
-    }
-
-    /* 口の設定（普段は閉じている） */
-    .mouth { width: 35px; height: 6px; background-color: #2c3e50; border-radius: 10px; transition: 0.1s; }
     
-    /* 話している時だけ「talking」クラスが付き、口が動く */
-    .interviewer-icon.talking .mouth {
-      animation: talk 0.25s infinite alternate;
+    /* ★ 話している時だけ発動するアニメーション（波紋のように光る＋少し揺れる） */
+    .interviewer-photo-container.talking {
+      animation: pulse-ring 1s infinite alternate;
     }
-    @keyframes talk {
-      0% { height: 6px; width: 35px; border-radius: 10px; background-color: #2c3e50; }
-      100% { height: 25px; width: 25px; border-radius: 50%; background-color: #8b0000; } /* 口が開いて少し赤くなる */
+    .interviewer-photo-container.talking .interviewer-photo {
+      animation: slight-bounce 0.3s infinite alternate;
+    }
+    
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7); }
+      100% { box-shadow: 0 0 0 15px rgba(74, 144, 226, 0); }
+    }
+    @keyframes slight-bounce {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-3px); }
     }
     /* ------------------------------------- */
 
@@ -53,15 +53,12 @@
 <body>
   <h2>AI模擬面接システム</h2>
   
-  <!-- 面接官の顔パーツ -->
+  <!-- 面接官の写真パーツ -->
   <div class="interviewer-wrapper">
     <div class="interviewer-label">面接官</div>
-    <div id="interviewer-img" class="interviewer-icon">
-      <div class="eyes">
-        <div class="eye"></div>
-        <div class="eye"></div>
-      </div>
-      <div class="mouth"></div>
+    <div id="interviewer-img" class="interviewer-photo-container">
+      <!-- ★ ここで写真を読み込みます。ファイル名が違う場合は書き換えてください -->
+      <img src="face.png" alt="面接官の写真" class="interviewer-photo" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
     </div>
   </div>
 
@@ -138,12 +135,12 @@
       const googleVoice = availableVoices.find(v => v.name === 'Google 日本語' || v.name === 'Google Japanese');
       if (googleVoice) uttr.voice = googleVoice;
 
-      // 読み上げ開始時に口を動かす
+      // 読み上げ開始時に「talking」クラスを付けて光らせる
       uttr.onstart = function() {
         document.getElementById('interviewer-img').classList.add('talking');
       };
 
-      // 読み上げ終了時に口を止める
+      // 読み上げ終了時に「talking」クラスを外して止める
       uttr.onend = function() {
         document.getElementById('interviewer-img').classList.remove('talking');
         if(callback) callback();
