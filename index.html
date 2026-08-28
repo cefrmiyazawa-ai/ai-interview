@@ -17,21 +17,20 @@
 <body>
   <h2>AI模擬面接システム</h2>
   <div id="interviewer-img" class="interviewer-icon">面接官</div>
-  <div id="recording-indicator">🔴 録音中...</div>
+  <div id="recording-indicator">🔴 面接録音＆文字起こし中...</div>
   <div id="question-text" class="question-box"></div>
 
   <div id="step1-prep" class="instruction-box">
     <h3>面接を開始します</h3>
-    <p>「面接を開始する」を押すと、マイクの許可が求められます。<br>「許可」を押すと録音がスタートします。</p>
+    <p>「開始する」を押すと録音がスタートします。<br>※AIが正確に聞き取れるよう、話し終えたら<b>1秒ほど待ってから</b>「次の質問へ」を押してください。</p>
     <button onclick="startInterview()">面接を開始する</button>
   </div>
   <button id="next-btn" onclick="nextQuestion()" style="display:none;">回答を終えて次の質問へ</button>
 
   <script>
-    // ★ 注意：ここに先生のGASのウェブアプリURLを忘れずに貼り付け直してください ★
-    const gasUrl = "ここにGASのURLを貼り付けます"; 
+    // ★ ここに先生のGASのウェブアプリURLを貼り付け直してください ★
+    const gasUrl = "https://script.google.com/macros/s/AKfycbxb01APGBOhZmMnxKWsGqP00sI-famCJ1JjPsIZ2Qp5kKyuDa0_BsnEkAQcJGRzFTCHNQ/exec"; 
 
-    // 面接の質問リスト（全11問）
     const questions = [
       "自己紹介をお願いします。",
       "学生時代に力を入れたことは何ですか。",
@@ -43,12 +42,42 @@
       "当社のホームページや会社案内をご覧になって、どう思われましたか。",
       "当社の企業理念について、どう思われますか。",
       "入社後、どのような仕事をしたいですか。",
-      "10年後、あなたは当社でどのような仕事をしていますか。"
+      "10年後、あなたは当社でどのような仕事をしていますか。",
+      "お疲れ様でした。これで今日の面接は終了です。" // 12問目（挨拶チェック用）
     ];
     
     let currentIndex = 0;
     let mediaRecorder;
     let audioChunks = [];
+    
+    // AI文字起こし用の変数
+    let recognition;
+    let currentAnswer = "";
+    let interviewRecord = [];
+
+    // --- 文字起こしエンジンの準備 ---
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new webkitSpeechRecognition();
+      recognition.lang = 'ja-JP';
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      
+      recognition.onresult = function(event) {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            currentAnswer += event.results[i][0].transcript + " ";
+          }
+        }
+      };
+      // 静寂で止まった場合は自動再開
+      recognition.onend = function() {
+         if (document.getElementById('recording-indicator').style.display === 'block' && document.getElementById('next-btn').style.display === 'inline-block') {
+             try { recognition.start(); } catch(e) {}
+         }
+      }
+    } else {
+      alert("お使いのブラウザは文字起こしに対応していません。Chromeをご利用ください。");
+    }
 
     // --- 音声エンジンの準備 ---
     let availableVoices = [];
@@ -59,35 +88,21 @@
     function speak(text, callback) {
       const uttr = new SpeechSynthesisUtterance(text);
       uttr.lang = 'ja-JP';
-      
-      // ★ 読み上げスピードの調整（1.0が標準。今回は0.9から1.1に少し上げました）
       uttr.rate = 1.1; 
       
-      if (availableVoices.length === 0) {
-        availableVoices = window.speechSynthesis.getVoices();
-      }
-
+      if (availableVoices.length === 0) availableVoices = window.speechSynthesis.getVoices();
       const googleVoice = availableVoices.find(v => v.name === 'Google 日本語' || v.name === 'Google Japanese');
-      
-      if (googleVoice) {
-        uttr.voice = googleVoice;
-        console.log("Google 日本語音声を適用しました");
-      } else {
-        console.log("Google 音声が見つからないため、標準音声を使用します");
-      }
+      if (googleVoice) uttr.voice = googleVoice;
 
       uttr.onend = callback; 
       window.speechSynthesis.speak(uttr);
     }
-    // -------------------------
 
     function startInterview() {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
           mediaRecorder = new MediaRecorder(stream);
-          mediaRecorder.addEventListener("dataavailable", event => {
-            audioChunks.push(event.data);
-          });
+          mediaRecorder.addEventListener("dataavailable", e => audioChunks.push(e.data));
           
           mediaRecorder.addEventListener("stop", () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -112,47 +127,60 @@
       document.getElementById('next-btn').style.display = 'none';
       if (currentIndex < questions.length) {
         const q = questions[currentIndex];
-        // 質問番号とテキストを表示
-        document.getElementById('question-text').innerText = `質問 ${currentIndex + 1} / ${questions.length} : ${q}`;
+        
+        // 最後の挨拶チェックの場合はボタンの文字を変える
+        if (currentIndex === questions.length - 1) {
+           document.getElementById('question-text').innerText = `【最終確認】 : ${q}`;
+           document.getElementById('next-btn').innerText = "挨拶をして面接を完了する";
+        } else {
+           document.getElementById('question-text').innerText = `質問 ${currentIndex + 1} / ${questions.length - 1} : ${q}`;
+           document.getElementById('next-btn').innerText = "回答を終えて次の質問へ";
+        }
+        
         speak(q, function() {
           document.getElementById('next-btn').style.display = 'inline-block';
+          // 質問が終わったら文字起こしスタート
+          currentAnswer = "";
+          if (recognition) { try { recognition.start(); } catch(e) {} }
         });
       } else {
         document.getElementById('recording-indicator').style.display = 'none';
-        document.getElementById('question-text').innerText = "面接終了です。音声を保存しています...";
-        if(mediaRecorder && mediaRecorder.state === "recording") {
-          mediaRecorder.stop();
-        }
+        document.getElementById('question-text').innerText = "面接終了です。AIが評価を作成中...（数十秒かかります）";
+        if(mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
       }
     }
 
     function nextQuestion() {
+      // 次に進む前に文字起こしを一旦停止して記録
+      if (recognition) { try { recognition.stop(); } catch(e) {} }
+      interviewRecord.push({
+        question: questions[currentIndex],
+        answer: currentAnswer.trim()
+      });
       currentIndex++;
       askQuestion();
     }
 
     function sendDataToGAS(base64Data) {
-      if(gasUrl === "ここにGASのURLを貼り付けます") {
-         alert("面接は終了しました。（※まだGASのURLが設定されていないため、データは送信されません）");
-         return;
-      }
+      if(gasUrl === "ここにGASのURLを貼り付けます") return alert("GASのURLが設定されていません。");
 
       fetch(gasUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' }, 
-        body: JSON.stringify({ audio: base64Data })
+        body: JSON.stringify({ 
+          audio: base64Data,
+          transcript: interviewRecord // AI評価用に文字起こしデータも送信
+        })
       })
       .then(response => response.json())
       .then(data => {
         if(data.status === "success") {
-          document.getElementById('question-text').innerHTML = "<span style='color:green;'>面接記録が保存されました！お疲れ様でした。</span>";
+          document.getElementById('question-text').innerHTML = "<span style='color:green;'>面接記録とAI評価がスプレッドシートに保存されました！お疲れ様でした。</span>";
         } else {
           alert("保存エラー: " + data.message);
         }
       })
-      .catch(error => {
-        alert("通信エラー: " + error);
-      });
+      .catch(error => alert("通信エラー: " + error));
     }
   </script>
 </body>
