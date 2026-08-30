@@ -6,25 +6,21 @@
   <style>
     body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f9f9f9; }
     
-    /* --- 面接官の写真とアニメーションの設定 --- */
     .interviewer-wrapper { margin: 0 auto 20px; display: flex; flex-direction: column; align-items: center; }
     .interviewer-label { font-weight: bold; color: #333; margin-bottom: 10px; font-size: 1.2em; }
     
-    /* 写真を丸く切り抜くための枠 */
     .interviewer-photo-container { 
       width: 150px; height: 150px; border-radius: 50%; 
       display: flex; align-items: center; justify-content: center; 
       transition: all 0.2s ease;
     }
     
-    /* 写真自体を枠に合わせて丸くする */
     .interviewer-photo {
       width: 100%; height: 100%; border-radius: 50%; 
-      object-fit: cover; /* 写真が歪まないように調整 */
+      object-fit: cover; 
       box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
     
-    /* ★ 話している時だけ発動するアニメーション（波紋のように光る＋少し揺れる） */
     .interviewer-photo-container.talking {
       animation: pulse-ring 1s infinite alternate;
     }
@@ -40,7 +36,6 @@
       0% { transform: translateY(0); }
       100% { transform: translateY(-3px); }
     }
-    /* ------------------------------------- */
 
     .question-box { font-size: 1.4em; font-weight: bold; margin: 20px 0; color: #333; min-height: 2em; }
     button { padding: 12px 24px; font-size: 1.1em; cursor: pointer; border: none; border-radius: 5px; background-color: #007bff; color: white; margin: 5px; }
@@ -53,12 +48,10 @@
 <body>
   <h2>AI模擬面接システム</h2>
   
-  <!-- 面接官の写真パーツ -->
   <div class="interviewer-wrapper">
     <div class="interviewer-label">面接官</div>
     <div id="interviewer-img" class="interviewer-photo-container">
-      <!-- ★ ここで写真を読み込みます。ファイル名が違う場合は書き換えてください -->
-      <img src="face.png" alt="面接官の写真" class="interviewer-photo" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
+      <img src="face.jpg" alt="面接官の写真" class="interviewer-photo" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
     </div>
   </div>
 
@@ -67,14 +60,14 @@
 
   <div id="step1-prep" class="instruction-box">
     <h3>面接を開始します</h3>
-    <p>「開始する」を押すと録音がスタートします。<br>※AIが正確に聞き取れるよう、話し終えたら<b>1秒ほど待ってから</b>「次の質問へ」を押してください。</p>
+    <p>「開始する」を押すと録音がスタートします。<br>※ブラウザは必ず<b>Google Chrome</b>を使用してください。<br>※話し終えたら<b>1秒ほど待ってから</b>「次の質問へ」を押してください。</p>
     <button onclick="startInterview()">面接を開始する</button>
   </div>
   <button id="next-btn" onclick="nextQuestion()" style="display:none;">回答を終えて次の質問へ</button>
 
   <script>
     // ★ ここに先生のGASのウェブアプリURLを貼り付け直してください ★
-    const gasUrl = "https://script.google.com/macros/s/AKfycbxb01APGBOhZmMnxKWsGqP00sI-famCJ1JjPsIZ2Qp5kKyuDa0_BsnEkAQcJGRzFTCHNQ/exec"; 
+    const gasUrl = "ここにGASのURLを貼り付けます"; 
 
     const questions = [
       "自己紹介をお願いします。",
@@ -97,20 +90,26 @@
     
     let recognition;
     let currentAnswer = "";
+    let finalTranscript = ""; // ★改良：確定した文字を保持する変数
     let interviewRecord = [];
 
     if ('webkitSpeechRecognition' in window) {
       recognition = new webkitSpeechRecognition();
       recognition.lang = 'ja-JP';
       recognition.continuous = true;
-      recognition.interimResults = false;
+      recognition.interimResults = true; // ★改良：文字の途中経過もリアルタイムで取得する
       
       recognition.onresult = function(event) {
+        let interimTranscript = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            currentAnswer += event.results[i][0].transcript + " ";
+            finalTranscript += event.results[i][0].transcript + " ";
+          } else {
+            interimTranscript += event.results[i][0].transcript;
           }
         }
+        // ★改良：確定した文字と、まだ処理中の文字を合体させて記録する
+        currentAnswer = finalTranscript + interimTranscript;
       };
       recognition.onend = function() {
          if (document.getElementById('recording-indicator').style.display === 'block' && document.getElementById('next-btn').style.display === 'inline-block') {
@@ -135,12 +134,9 @@
       const googleVoice = availableVoices.find(v => v.name === 'Google 日本語' || v.name === 'Google Japanese');
       if (googleVoice) uttr.voice = googleVoice;
 
-      // 読み上げ開始時に「talking」クラスを付けて光らせる
       uttr.onstart = function() {
         document.getElementById('interviewer-img').classList.add('talking');
       };
-
-      // 読み上げ終了時に「talking」クラスを外して止める
       uttr.onend = function() {
         document.getElementById('interviewer-img').classList.remove('talking');
         if(callback) callback();
@@ -189,7 +185,9 @@
         
         speak(q, function() {
           document.getElementById('next-btn').style.display = 'inline-block';
+          // ★改良：次の質問に行くときに変数をリセットする
           currentAnswer = "";
+          finalTranscript = ""; 
           if (recognition) { try { recognition.start(); } catch(e) {} }
         });
       } else {
@@ -210,7 +208,7 @@
     }
 
     function sendDataToGAS(base64Data) {
-      if(gasUrl === "ここにGASのURLを貼り付けます") return alert("GASのURLが設定されていません。");
+      if(gasUrl === "https://script.google.com/macros/s/AKfycbxb01APGBOhZmMnxKWsGqP00sI-famCJ1JjPsIZ2Qp5kKyuDa0_BsnEkAQcJGRzFTCHNQ/exec") return alert("GASのURLが設定されていません。");
 
       fetch(gasUrl, {
         method: 'POST',
