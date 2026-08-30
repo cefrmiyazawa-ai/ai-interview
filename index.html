@@ -43,6 +43,9 @@
     .instruction-box { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 20px auto; max-width: 600px; line-height: 1.6; }
     #recording-indicator { color: red; font-weight: bold; animation: blink 1s step-end infinite; display: none; margin-bottom: 15px;}
     @keyframes blink { 50% { opacity: 0; } }
+    
+    /* 入力フォームのスタイル */
+    .input-field { padding: 10px; font-size: 1.1em; margin: 5px; width: 80%; max-width: 300px; border: 1px solid #ccc; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -60,13 +63,16 @@
 
   <div id="step1-prep" class="instruction-box">
     <h3>面接を開始します</h3>
+    <p>記録のため、学籍番号と氏名を入力してください。</p>
+    <input type="text" id="student-id" class="input-field" placeholder="学籍番号（例: 26001）"><br>
+    <input type="text" id="student-name" class="input-field" placeholder="氏名（例: グエン）"><br><br>
     <p>「開始する」を押すと録音がスタートします。<br>※ブラウザは必ず<b>Google Chrome</b>を使用してください。<br>※話し終えたら<b>1秒ほど待ってから</b>「次の質問へ」を押してください。</p>
     <button onclick="startInterview()">面接を開始する</button>
   </div>
   <button id="next-btn" onclick="nextQuestion()" style="display:none;">回答を終えて次の質問へ</button>
 
   <script>
-    // ★ 先生のGASのURLを正しく設定済みです ★
+    // ★ 先生のGASのURL ★
     const gasUrl = "https://script.google.com/macros/s/AKfycbxb01APGBOhZmMnxKWsGqP00sI-famCJ1JjPsIZ2Qp5kKyuDa0_BsnEkAQcJGRzFTCHNQ/exec"; 
 
     const questions = [
@@ -92,6 +98,9 @@
     let currentAnswer = "";
     let finalTranscript = ""; 
     let interviewRecord = [];
+    
+    let currentStudentId = "";
+    let currentStudentName = "";
 
     if ('webkitSpeechRecognition' in window) {
       recognition = new webkitSpeechRecognition();
@@ -145,6 +154,15 @@
     }
 
     function startInterview() {
+      // ★学籍番号と氏名が入力されているかチェック
+      currentStudentId = document.getElementById('student-id').value.trim();
+      currentStudentName = document.getElementById('student-name').value.trim();
+      
+      if(!currentStudentId || !currentStudentName) {
+        alert("面接を始める前に、学籍番号と氏名を入力してください。");
+        return;
+      }
+
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
           mediaRecorder = new MediaRecorder(stream);
@@ -195,7 +213,6 @@
       }
     }
 
-    // ★前回抜け落ちていた重要な関数を復活させました！
     function nextQuestion() {
       if (recognition) { try { recognition.stop(); } catch(e) {} }
       interviewRecord.push({
@@ -207,11 +224,12 @@
     }
 
     function sendDataToGAS(base64Data) {
-      // ★エラーの原因だった「if(gasUrl === ...)」の行を完全に削除しました！
       fetch(gasUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' }, 
         body: JSON.stringify({ 
+          studentId: currentStudentId,     // ★学籍番号をGASに送る
+          studentName: currentStudentName, // ★氏名をGASに送る
           audio: base64Data,
           transcript: interviewRecord 
         })
