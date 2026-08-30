@@ -195,9 +195,19 @@
       }
     }
 
-    function sendDataToGAS(base64Data) {
-      if(gasUrl === "ここにGASのURLを貼り付けます") return alert("GASのURLが設定されていません。");
+    // ★前回抜け落ちていた重要な関数を復活させました！
+    function nextQuestion() {
+      if (recognition) { try { recognition.stop(); } catch(e) {} }
+      interviewRecord.push({
+        question: questions[currentIndex],
+        answer: currentAnswer.trim()
+      });
+      currentIndex++;
+      askQuestion();
+    }
 
+    function sendDataToGAS(base64Data) {
+      // ★エラーの原因だった「if(gasUrl === ...)」の行を完全に削除しました！
       fetch(gasUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' }, 
