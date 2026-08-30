@@ -208,8 +208,8 @@
     }
 
     function sendDataToGAS(base64Data) {
-      if(gasUrl === "https://script.google.com/macros/s/AKfycbxb01APGBOhZmMnxKWsGqP00sI-famCJ1JjPsIZ2Qp5kKyuDa0_BsnEkAQcJGRzFTCHNQ/exec") return alert("GASのURLが設定されていません。");
-
+  if(gasUrl === "ここにGASのURLを貼り付けます") return alert("GASのURLが設定されていません。");
+   
       fetch(gasUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' }, 
